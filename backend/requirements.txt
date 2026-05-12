@@ -1,0 +1,8 @@
+# Python залежності backend-у
+# Встановлюються в Docker через: pip install -r requirements.txt
+
+fastapi==0.115.0           # веб-фреймворк
+uvicorn[standard]==0.32.0  # ASGI-сервер, який запускає FastAPI
+sqlalchemy==2.0.35         # ORM для роботи з БД
+psycopg2-binary==2.9.10    # драйвер PostgreSQL для Python
+pydantic==2.9.2            # валідація даних (використовується FastAPI під капотом)

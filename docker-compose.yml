@@ -1,0 +1,40 @@
+# docker-compose.yml — піднімає 2 контейнери: Postgres + FastAPI backend
+# Запуск: docker-compose up --build
+
+services:
+  # ─────────────────────────────────────────────
+  # PostgreSQL — база даних
+  # ─────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine          # офіційний образ Postgres v16, легка версія
+    environment:
+      POSTGRES_USER: flightuser        # логін до БД
+      POSTGRES_PASSWORD: flightpass    # пароль (для dev — ок, для prod — secrets)
+      POSTGRES_DB: flightdb            # назва бази, яка створиться автоматично
+    ports:
+      - "5432:5432"                    # 5432 host → 5432 контейнер (щоб можна було підключитись з PyCharm/DBeaver)
+    healthcheck:
+      # Postgres вважається "готовим" коли pg_isready відповідає ОК
+      # Backend чекає цього стану, щоб не падати на старті
+      test: ["CMD-SHELL", "pg_isready -U flightuser -d flightdb"]
+      interval: 5s                     # перевіряти кожні 5 сек
+      timeout: 3s                      # якщо нема відповіді за 3 сек — провал
+      retries: 5                       # 5 невдач підряд = unhealthy
+
+  # ─────────────────────────────────────────────
+  # FastAPI backend — наш API
+  # ─────────────────────────────────────────────
+  backend:
+    build: ./backend                   # збирає Dockerfile з папки ./backend
+    ports:
+      - "8000:8000"                    # API буде доступний на http://localhost:8000
+    environment:
+      # Адреса БД ВСЕРЕДИНІ Docker-мережі: host = "db" (ім'я сервісу вище)
+      DATABASE_URL: postgresql://flightuser:flightpass@db:5432/flightdb
+    depends_on:
+      db:
+        condition: service_healthy     # стартує тільки коли Postgres пройде healthcheck
+    volumes:
+      # Hot-reload: зміни в локальному ./backend/app зразу видно в контейнері
+      # без перебілду образу
+      - ./backend/app:/code/app
