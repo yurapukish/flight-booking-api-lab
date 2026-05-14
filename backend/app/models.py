@@ -147,3 +147,17 @@ class Booking(Base):
             f"Booking(id={self.id!r}, flight_id={self.flight_id!r}, "
             f"seat={self.seat_number!r}, email={self.passenger_email!r})"
         )
+
+
+class User(Base):
+    """User — користувач"""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
+    is_admin: Mapped[bool] = mapped_column(nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    def __repr__(self) -> str:
+        return f"User (email={self.email!r}, is_admin={self.is_admin!r})"

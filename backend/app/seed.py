@@ -20,12 +20,12 @@ Usage:
 from datetime import datetime, timedelta
 
 from app.db import SessionLocal
-from app.models import Airport, Flight, Booking
+from app.models import Airport, Flight, Booking, User
 
 
 def seed():
     """Populate database with airports, flights, and a booking."""
-    session = SessionLocal() #с есія БД
+    session = SessionLocal()  #сесія БД
     try:
         # Idempotency: якщо вже засідано — пропускаємо
         if session.query(Airport).filter_by(code="BCN").first():
@@ -75,6 +75,16 @@ def seed():
         )
         session.add(booking)
 
+        # 4. Users
+        admin = User(
+            email='admin@mail.com',
+            is_admin=True,
+        )
+        regular_user = User(
+            email='test_user@mail.com',
+        )
+
+        session.add_all([admin, regular_user])
         # Зберегти все одним коммітом
         session.commit()
         print(f"✅ Booking added: seat {booking.seat_number} on {flight1.flight_number}")
@@ -85,8 +95,10 @@ def seed():
         print(f"❌ Seed failed: {e}")
         raise
     finally:
-        session.close() # завжди закриваємо
+        session.close()  # завжди закриваємо
+
 
 #docker-compose exec backend python -m app.seed
+
 if __name__ == "__main__":
     seed()

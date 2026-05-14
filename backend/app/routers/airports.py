@@ -6,6 +6,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.dependencies import require_admin
 from app.models import Airport
 from app.schemas import AirportRead, AirportCreate
 
@@ -38,7 +39,7 @@ def list_airports(city: str | None = None, db: Session = Depends(get_db)):
     return db.execute(query).scalars().all()
 
 
-@router.post("/", response_model=AirportRead, status_code=201)
+@router.post("/", response_model=AirportRead, status_code=201, dependencies=[Depends(require_admin)])
 def create_airport(airport: AirportCreate, db: Session = Depends(get_db)):
     """Створити новий аеропорт."""
     # 1. Перетворюємо Pydantic-обʼєкт у dict і розпаковуємо як kwargs:
@@ -64,7 +65,6 @@ def create_airport(airport: AirportCreate, db: Session = Depends(get_db)):
     # 5. Повертаємо ORM-обʼєкт. FastAPI серіалізує його через AirportRead
     #    (завдяки from_attributes=True у схемі).
     return new_airport
-
 
 
 @router.get("/{airport_id}", response_model=AirportRead, status_code=200)
