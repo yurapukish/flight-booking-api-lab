@@ -46,17 +46,10 @@ class AirportCreate(AirportBase):
     pass
 
 
-
-
-
-
-
-class FlightRead(BaseModel):
-    """Flight у відповіді API."""
+class FlightBase(BaseModel):
+    """Спільні поля Flight для Create та Read."""
 
     model_config = ConfigDict(from_attributes=True)
-
-    id: int
     flight_number: str
     departure_airport_id: int
     arrival_airport_id: int
@@ -64,6 +57,24 @@ class FlightRead(BaseModel):
     arrival_time: datetime
     total_seats: int
     price_eur: float
+
+
+class FlightCreate(FlightBase):
+    """Дані для створення Flight (POST body).
+    """
+    pass
+
+
+class FlightUpdate(FlightBase):
+    """Дані для Update Flight (POST body).
+    """
+    pass
+
+
+class FlightRead(FlightBase):
+    """Flight у відповіді API."""
+
+    id: int
     # created_at: datetime Better to hide also
 
 
