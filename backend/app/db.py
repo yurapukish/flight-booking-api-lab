@@ -24,3 +24,12 @@ def check_db() -> bool:
         return True
     except Exception:
         return False
+
+
+
+"""
+Host:     localhost
+Port:     5432
+Database: flightdb
+User:     flightuser
+Password: flightpass"""

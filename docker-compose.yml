@@ -1,40 +1,30 @@
-# docker-compose.yml — піднімає 2 контейнери: Postgres + FastAPI backend
-# Запуск: docker-compose up --build
-
 services:
-  # ─────────────────────────────────────────────
-  # PostgreSQL — база даних
-  # ─────────────────────────────────────────────
   db:
-    image: postgres:16-alpine          # офіційний образ Postgres v16, легка версія
+    image: postgres:16-alpine
     environment:
-      POSTGRES_USER: flightuser        # логін до БД
-      POSTGRES_PASSWORD: flightpass    # пароль (для dev — ок, для prod — secrets)
-      POSTGRES_DB: flightdb            # назва бази, яка створиться автоматично
+      POSTGRES_USER: flightuser
+      POSTGRES_PASSWORD: flightpass
+      POSTGRES_DB: flightdb
     ports:
-      - "5432:5432"                    # 5432 host → 5432 контейнер (щоб можна було підключитись з PyCharm/DBeaver)
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data    # ← НОВЕ
     healthcheck:
-      # Postgres вважається "готовим" коли pg_isready відповідає ОК
-      # Backend чекає цього стану, щоб не падати на старті
       test: ["CMD-SHELL", "pg_isready -U flightuser -d flightdb"]
-      interval: 5s                     # перевіряти кожні 5 сек
-      timeout: 3s                      # якщо нема відповіді за 3 сек — провал
-      retries: 5                       # 5 невдач підряд = unhealthy
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
-  # ─────────────────────────────────────────────
-  # FastAPI backend — наш API
-  # ─────────────────────────────────────────────
   backend:
-    build: ./backend                   # збирає Dockerfile з папки ./backend
+    build: ./backend
     ports:
-      - "8000:8000"                    # API буде доступний на http://localhost:8000
+      - "8000:8000"
     environment:
-      # Адреса БД ВСЕРЕДИНІ Docker-мережі: host = "db" (ім'я сервісу вище)
       DATABASE_URL: postgresql://flightuser:flightpass@db:5432/flightdb
     depends_on:
       db:
-        condition: service_healthy     # стартує тільки коли Postgres пройде healthcheck
+        condition: service_healthy
     volumes:
-      # Hot-reload: зміни в локальному ./backend/app зразу видно в контейнері
-      # без перебілду образу
       - ./backend/app:/code/app
+volumes:                # ← ось ця секція, у самому низу
+  postgres_data:
