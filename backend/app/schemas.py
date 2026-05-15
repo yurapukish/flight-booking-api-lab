@@ -13,7 +13,7 @@ ORM-моделі (`app.models`) описують структуру в БД; Pyd
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class AirportBase(BaseModel):
@@ -62,13 +62,34 @@ class FlightBase(BaseModel):
 class FlightCreate(FlightBase):
     """Дані для створення Flight (POST body).
     """
-    pass
+
+    @model_validator(mode='after')
+    def check_consistency(self):
+        if self.arrival_time <= self.departure_time:
+            raise ValueError("arrival_time must be after departure_time")
+        if self.departure_airport_id == self.arrival_airport_id:
+            raise ValueError("departure and arrival airports must differ")
+        return self
 
 
-class FlightUpdate(FlightBase):
-    """Дані для Update Flight (POST body).
-    """
-    pass
+class FlightUpdate(BaseModel):
+    flight_number: str | None = None
+    departure_airport_id: int | None = None
+    arrival_airport_id: int | None = None
+    departure_time: datetime | None = None
+    arrival_time: datetime | None = None
+    total_seats: int | None = None
+    price_eur: float | None = None
+
+    @model_validator(mode='after')
+    def check_consistency(self):
+        if self.arrival_time is not None and self.departure_time is not None:
+            if self.arrival_time <= self.departure_time:
+                raise ValueError("arrival_time must be after departure_time")
+        if self.departure_airport_id is not None and self.arrival_airport_id is not None:
+            if self.departure_airport_id == self.arrival_airport_id:
+                raise ValueError("departure and arrival airports must differ")
+        return self
 
 
 class FlightRead(FlightBase):
@@ -78,14 +99,31 @@ class FlightRead(FlightBase):
     # created_at: datetime Better to hide also
 
 
-class BookingRead(BaseModel):
-    """Booking у відповіді API."""
+class BookingBase(BaseModel):
+    """BookingBase"""
 
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
     flight_id: int
     passenger_name: str
     passenger_email: str
     seat_number: str
+
+
+class BookingRead(BookingBase):
+    """Booking у відповіді API."""
+
+    model_config = ConfigDict(from_attributes=True)
+    id: int
     created_at: datetime
+
+
+class BookingCreate(BookingBase):
+    """Booking у Create"""
+    pass
+
+
+class AvailabilityResponse(BaseModel):
+    """check free seats for flight"""
+    flight_id: int
+    total: int
+    booked: int
+    available: int

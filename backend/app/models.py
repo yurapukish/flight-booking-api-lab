@@ -47,7 +47,8 @@ SQLAlchemy виводить з них SQL-типи колонок, а стати
 
 from datetime import datetime
 
-from sqlalchemy import String, ForeignKey, func
+from pydantic import model_validator
+from sqlalchemy import String, ForeignKey, func, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -134,6 +135,9 @@ class Booking(Base):
     """
 
     __tablename__ = "bookings"
+    __table_args__ = (
+        UniqueConstraint("flight_id", "seat_number", name="uq_booking_flight_seat"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     flight_id: Mapped[int] = mapped_column(ForeignKey("flights.id"), nullable=False)
