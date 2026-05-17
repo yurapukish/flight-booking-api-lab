@@ -16,3 +16,7 @@ Thumbs.db
 # Env / secrets
 .env
 *.log
+
+# Personal drafts (LinkedIn posts, etc.)
+linkedin_post_*.md
+.remember/
