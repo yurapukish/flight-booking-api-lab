@@ -57,3 +57,13 @@ class BookingResponseModel(BaseModel):
     passenger_email: str
     seat_number: str
     created_at: datetime
+
+
+class AvailabilityResponseModel(BaseModel):
+    """Відповідь GET /flights/{id}/availability."""
+    model_config = ConfigDict(extra="forbid")
+
+    flight_id: int
+    total: int
+    booked: int
+    available: int

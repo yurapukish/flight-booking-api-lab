@@ -18,7 +18,7 @@ def user_headers() -> dict:
 
 def unique_airport_payload() -> dict:
     """Унікальний payload для POST — щоб не конфліктувати з seed/іншими тестами."""
-    code = f"T{uuid.uuid4().hex[:2].upper()}"   # T + 2 hex → 3 літери як IATA
+    code = uuid.uuid4().hex[:3].upper()   # 3 hex chars → 4096 кодів
     return {
         "code": code,
         "name": f"Test Airport {code}",
