@@ -154,20 +154,6 @@ flight-booking-api-lab/
 
 ---
 
-## 📍 Lesson 3: REST API + Auth + Validation
-
-Full backend with 12+ endpoints across **airports / flights / bookings**.
-
-- ✅ Pydantic schemas (Base / Create / Read / Update pattern)
-- ✅ `@model_validator` for cross-field validation (e.g. `arrival > departure`)
-- ✅ Header-based admin guard (`X-User-Email` → `require_admin` dependency)
-- ✅ Self-join through SQLAlchemy `aliased()` for `?from=KBP&to=WAW` filters
-- ✅ Composite `UniqueConstraint(flight_id, seat_number)` + IntegrityError safety net
-- ✅ Owner-access vs admin-override as separate endpoints
-- ✅ HTTP semantics: `200/201/204/400/401/403/404/409/422` each in its own context
-
----
-
 ## 🗺️ Lessons so far
 
 - ✅ **Lesson 1** — Skeleton + `/health`
