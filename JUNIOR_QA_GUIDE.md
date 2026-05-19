@@ -13,7 +13,6 @@
 | **Робочий REST API** із 12+ ендпойнтами | Можна писати свої тести і відразу бачити результат |
 | **Реальна PostgreSQL у Docker** | Дивишся в БД через DBeaver — перевіряєш ефект кожного запиту |
 | **Swagger UI** на `/docs` | Не треба ставити Postman — усе вже там |
-| **Авторизація через header** | Простий, але реалістичний приклад auth-логіки |
 | **Composite UniqueConstraint, FK, валідація** | Тренуєш граничні випадки (overbooking, duplicate seats) |
 | **HTTP-коди по справжньому** | 200/201/204/400/401/403/404/409/422 — кожен у своєму контексті |
 | **Прогресія по уроках у git history** | Бачиш, як проєкт виростав — корисно для розуміння архітектури |
@@ -321,29 +320,6 @@ docker-compose down -v
 
 ---
 
-## 🆘 Troubleshooting
-
-### «Cannot connect to Docker daemon»
-Docker Desktop не запущений. Запусти і дочекайся «Engine running».
-
-### «Port 8000 is already in use»
-Інший процес займає порт. Знайди і вбий:
-```bash
-lsof -i :8000   # macOS / Linux
-```
-
-### Swagger показує `Not Found`
-Бекенд ще не запустився. Чекай 5-10 секунд або дивись `docker-compose logs backend`.
-
-### `seed` каже «Seed data already present, skipping»
-Дані вже є — це нормально, скрипт ідемпотентний. Якщо хочеш свіжі — `docker-compose down -v && up -d && seed`.
-
-### DBeaver не підключається
-1. Перевір, чи контейнер `db` живий: `docker-compose ps`.
-2. Перевір що порт 5432 не зайнятий іншим Postgres.
-
----
-
 ## 🗺 Що вже зроблено в проєкті
 
 Цей проєкт будується **по уроках**. Те, що ти зараз бачиш — закриті уроки:
@@ -365,9 +341,5 @@ lsof -i :8000   # macOS / Linux
 - **FastAPI:** [fastapi.tiangolo.com](https://fastapi.tiangolo.com/) — офіційна, чудова документація
 
 ---
-
-## 🤝 Запитання?
-
-Якщо щось зламалось або незрозуміло — створи issue на GitHub або напиши автору проєкту.
 
 **Запамʼятай головне:** не бійся ламати локальний backend. Усе можна відновити одним `docker-compose down -v && up -d --build && seed`. 🚀
