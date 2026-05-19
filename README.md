@@ -3,7 +3,9 @@
 API testing portfolio project, built lesson by lesson.
 Each lesson adds a new layer — backend, tests, CI, security, performance.
 
-> 🇺🇦 **Junior QA?** Read [`JUNIOR_QA_GUIDE.md`](./JUNIOR_QA_GUIDE.md) — Ukrainian-language step-by-step onboarding (Docker + Swagger + DBeaver + hands-on edge cases).
+> 🇺🇦 **Junior QA?**
+> - [`JUNIOR_QA_GUIDE.md`](./JUNIOR_QA_GUIDE.md) — крок-за-кроком онбординг (Docker + Swagger + DBeaver)
+> - [`HOMEWORK.md`](./HOMEWORK.md) — практичні вправи з чек-листом і edge cases
 
 ## 🚀 TL;DR — Quick start
 
