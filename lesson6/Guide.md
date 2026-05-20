@@ -319,6 +319,172 @@ git push -u origin feature/ci-pr-test
 
 ---
 
+## 🎛 Як додати параметри (inputs) до ручного запуску
+
+Зараз кнопка «Run workflow» дає QA вибрати **лише гілку**. Часто хочеться
+дати більше контролю — наприклад:
+- Який suite запустити (procedural / oop / обидва)
+- Фільтр по pytest marker (`-m "not db"` для swift smoke)
+- Verbose чи ні
+
+GitHub дозволяє це через **`inputs:`** у блоці `workflow_dispatch:`.
+На push і PR ці поля **ігноруються** (беруться дефолти), на manual run
+QA отримує форму з полями.
+
+### Крок 1: оголосити inputs
+
+У файлі `.github/workflows/api-tests.yml` знайди блок `workflow_dispatch:`
+(зараз — порожній рядок) і заміни його на такий:
+
+```yaml
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Який suite запускати'
+        type: choice
+        options:
+          - both
+          - procedural
+          - oop
+        default: both
+      marker:
+        description: 'Pytest marker (опц., напр. "not db")'
+        type: string
+        default: ''
+      verbose:
+        description: 'Verbose output'
+        type: boolean
+        default: true
+```
+
+### Крок 2: використати inputs у steps
+
+У step **«Run procedural/OOP tests»** заміни `pytest -v` на щось таке:
+
+```yaml
+- name: Run procedural tests
+  if: ${{ inputs.test_suite == 'both' || inputs.test_suite == 'procedural' || github.event_name != 'workflow_dispatch' }}
+  working-directory: api_tests/procedural_approach
+  run: pytest ${{ inputs.verbose && '-v' || '' }} ${{ inputs.marker && format('-m "{0}"', inputs.marker) || '' }}
+
+- name: Run OOP tests
+  if: ${{ inputs.test_suite == 'both' || inputs.test_suite == 'oop' || github.event_name != 'workflow_dispatch' }}
+  working-directory: api_tests/oop_approach
+  run: pytest ${{ inputs.verbose && '-v' || '' }} ${{ inputs.marker && format('-m "{0}"', inputs.marker) || '' }}
+```
+
+**Що це робить:**
+- `if:` — пропустити крок, якщо QA вибрав інший suite (на push/PR крок завжди виконується)
+- `inputs.verbose && '-v' || ''` — тернарка: якщо verbose=true → `-v`, інакше порожньо
+- `format('-m "{0}"', inputs.marker)` — підстановка значення marker, якщо непорожнє
+
+### Крок 3: запушити і подивитися
+
+Після push зайди в **Actions** → **API tests** → **Run workflow ▼** —
+тепер у дропдауні три нових поля:
+
+```
+Run workflow ▼
+   Branch: lesson6
+   Який suite запускати: [both ▼]
+   Pytest marker (опц.): [             ]
+   Verbose output:        ☑
+   [ Run workflow ]
+```
+
+### Якщо лінь правити вручну
+
+Просто **заміни** свій `.github/workflows/api-tests.yml` на цей цілий файл
+(перевірений робочий варіант з усіма inputs):
+
+<details>
+<summary>👉 Розгорнути повний файл api-tests.yml</summary>
+
+```yaml
+name: API tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Який suite запускати'
+        type: choice
+        options:
+          - both
+          - procedural
+          - oop
+        default: both
+      marker:
+        description: 'Pytest marker (опц., напр. "not db")'
+        type: string
+        default: ''
+      verbose:
+        description: 'Verbose output'
+        type: boolean
+        default: true
+  push:
+    paths:
+      - 'backend/**'
+      - 'api_tests/**'
+      - '.github/workflows/api-tests.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'api_tests/**'
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Start backend + Postgres
+        run: docker compose up -d --build
+
+      - name: Wait for backend
+        run: |
+          for i in {1..30}; do
+            if curl -sS http://localhost:8000/health | grep -q '"db":"connected"'; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs backend
+          exit 1
+
+      - name: Seed test data
+        run: docker compose exec -T backend python -m app.seed
+
+      - name: Install procedural deps
+        if: ${{ inputs.test_suite == 'both' || inputs.test_suite == 'procedural' || github.event_name != 'workflow_dispatch' }}
+        run: pip install -r api_tests/procedural_approach/requirements.txt
+
+      - name: Run procedural tests
+        if: ${{ inputs.test_suite == 'both' || inputs.test_suite == 'procedural' || github.event_name != 'workflow_dispatch' }}
+        working-directory: api_tests/procedural_approach
+        run: pytest ${{ inputs.verbose && '-v' || '' }} ${{ inputs.marker && format('-m "{0}"', inputs.marker) || '' }}
+
+      - name: Install OOP deps
+        if: ${{ inputs.test_suite == 'both' || inputs.test_suite == 'oop' || github.event_name != 'workflow_dispatch' }}
+        run: pip install -r api_tests/oop_approach/requirements.txt
+
+      - name: Run OOP tests
+        if: ${{ inputs.test_suite == 'both' || inputs.test_suite == 'oop' || github.event_name != 'workflow_dispatch' }}
+        working-directory: api_tests/oop_approach
+        run: pytest ${{ inputs.verbose && '-v' || '' }} ${{ inputs.marker && format('-m "{0}"', inputs.marker) || '' }}
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+```
+
+</details>
+
+---
+
 ## ⚠️ Грабельки, на які можна наступити
 
 ### 1. Workflow не запускається
@@ -371,19 +537,3 @@ Backend не встиг піднятися. Збільш ліміт у waiting-s
 **Це фундамент production-grade workflow.** Усі серйозні проєкти
 працюють приблизно так само.
 
----
-
-## 🟢 Перший прогін на цьому проєкті
-
-Workflow пройшов **з першого разу за ~1 хв 4 сек** (запуск спрацював
-автоматично, бо commit змінив сам `.github/workflows/api-tests.yml` —
-це класний «само-тригер», див. грабельку №6).
-
-Що це означає:
-- docker compose у CI стартує чисто
-- backend піднімається швидше за 60s
-- seed працює без модифікацій
-- 76 OOP-тестів проходять у CI так само, як локально
-
-Якщо твоя зміна **зламає** один з цих кроків — побачиш червоне у
-Actions ще **до** того, як хтось почне рев'юати PR. Це і є цінність CI.
