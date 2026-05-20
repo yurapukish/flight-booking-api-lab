@@ -18,7 +18,7 @@ def test_get_airport_by_id_returns_valid_schema(http_client):
 
     # Крок 2: запит по id
     response = get_airport_by_id_request(http_client, airport_random['id'])
-    assert response.status_code == 200
+    assert response.status_code == 999
 
     # Крок 3: валідація структури (одна модель, не list!)
     airport = AirportResponseModel.model_validate(response.json())
@@ -35,5 +35,5 @@ def test_get_airport_by_nonexistent_id_returns_404(http_client):
     response = get_airport_by_id_request(http_client, nonexistent_id)
 
     # Крок 3: 404 + повідомлення
-    assert response.status_code == 404
+    assert response.status_code == 999
     assert response.json() == {"detail": "Airport not found"}
