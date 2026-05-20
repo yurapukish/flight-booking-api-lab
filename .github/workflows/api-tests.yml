@@ -43,10 +43,17 @@ jobs:
       - name: Seed test data
         run: docker compose exec -T backend python -m app.seed
 
-      - name: Install test dependencies
+      - name: Install procedural test deps
+        run: pip install -r api_tests/procedural_approach/requirements.txt
+
+      - name: Run procedural tests
+        working-directory: api_tests/procedural_approach
+        run: pytest -v
+
+      - name: Install OOP test deps
         run: pip install -r api_tests/oop_approach/requirements.txt
 
-      - name: Run pytest
+      - name: Run OOP tests
         working-directory: api_tests/oop_approach
         run: pytest -v
 
