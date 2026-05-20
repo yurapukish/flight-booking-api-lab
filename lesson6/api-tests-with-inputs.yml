@@ -3,22 +3,14 @@ name: API tests
 on:
   workflow_dispatch:
     inputs:
-      test_suite:
-        description: 'Який suite запускати'
-        type: choice
-        options:
-          - both
-          - procedural
-          - oop
-        default: both
+      test_path:
+        description: 'Шлях до тестів (напр. api_tests/oop_approach/tests/airports)'
+        type: string
+        default: 'api_tests/oop_approach'
       marker:
         description: 'Pytest marker (опц., напр. "not db")'
         type: string
         default: ''
-      verbose:
-        description: 'Verbose output'
-        type: boolean
-        default: true
   push:
     paths:
       - 'backend/**'
@@ -55,23 +47,15 @@ jobs:
       - name: Seed test data
         run: docker compose exec -T backend python -m app.seed
 
-      - name: Install procedural deps
-        if: inputs.test_suite == 'both' || inputs.test_suite == 'procedural' || github.event_name != 'workflow_dispatch'
-        run: pip install -r api_tests/procedural_approach/requirements.txt
+      # Ставимо обидва набори залежностей одразу — щоб користувач міг передати
+      # будь-який test_path (procedural або oop) без додаткової логіки.
+      - name: Install test deps (both suites)
+        run: |
+          pip install -r api_tests/procedural_approach/requirements.txt
+          pip install -r api_tests/oop_approach/requirements.txt
 
-      - name: Run procedural tests
-        if: inputs.test_suite == 'both' || inputs.test_suite == 'procedural' || github.event_name != 'workflow_dispatch'
-        working-directory: api_tests/procedural_approach
-        run: pytest ${{ inputs.verbose && '-v' || '' }} ${{ inputs.marker && format('-m "{0}"', inputs.marker) || '' }}
-
-      - name: Install OOP deps
-        if: inputs.test_suite == 'both' || inputs.test_suite == 'oop' || github.event_name != 'workflow_dispatch'
-        run: pip install -r api_tests/oop_approach/requirements.txt
-
-      - name: Run OOP tests
-        if: inputs.test_suite == 'both' || inputs.test_suite == 'oop' || github.event_name != 'workflow_dispatch'
-        working-directory: api_tests/oop_approach
-        run: pytest ${{ inputs.verbose && '-v' || '' }} ${{ inputs.marker && format('-m "{0}"', inputs.marker) || '' }}
+      - name: Run pytest
+        run: pytest ${{ inputs.test_path || 'api_tests/oop_approach' }} -v ${{ inputs.marker && format('-m "{0}"', inputs.marker) || '' }}
 
       - name: Tear down
         if: always()

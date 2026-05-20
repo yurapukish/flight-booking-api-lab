@@ -359,15 +359,14 @@ GitHub читає блок **`inputs:`** під `workflow_dispatch:` і малю
 кнопці «Run workflow». На push/PR ці поля **ігноруються** — беруться
 дефолти.
 
-**Оголошення (минулому файлі під `workflow_dispatch:`):**
+**Оголошення (під `workflow_dispatch:`):**
 ```yaml
   workflow_dispatch:
     inputs:
-      test_suite:
-        description: 'Який suite запускати'
-        type: choice
-        options: [both, procedural, oop]
-        default: both
+      test_path:
+        description: 'Шлях до тестів (напр. api_tests/oop_approach/tests/airports)'
+        type: string
+        default: 'api_tests/oop_approach'
       marker:
         description: 'Pytest marker (опц., напр. "not db")'
         type: string
@@ -376,14 +375,18 @@ GitHub читає блок **`inputs:`** під `workflow_dispatch:` і малю
 
 **Використання у step:**
 ```yaml
-- name: Run OOP tests
-  if: inputs.test_suite == 'both' || inputs.test_suite == 'oop' || github.event_name != 'workflow_dispatch'
-  working-directory: api_tests/oop_approach
-  run: pytest -v ${{ inputs.marker && format('-m "{0}"', inputs.marker) || '' }}
+- name: Run pytest
+  run: pytest ${{ inputs.test_path || 'api_tests/oop_approach' }} -v ${{ inputs.marker && format('-m "{0}"', inputs.marker) || '' }}
 ```
 
-- `if:` — пропустити крок, якщо QA вибрав інший suite (на push/PR умова `github.event_name != 'workflow_dispatch'` робить step завжди активним)
+- `inputs.test_path || 'api_tests/oop_approach'` — на push/PR `inputs` порожні → беремо дефолт
 - `${{ inputs.marker && format(...) || '' }}` — підставити `-m "..."` тільки якщо marker не порожній
+
+⚠️ **Чому не `api_tests` як дефолт?** У `procedural_approach/` і `oop_approach/`
+свої окремі `pytest.ini` — pytest, запущений з батьківської `api_tests/`,
+заплутається. Один suite = один pytest-проект.
+
+Щоб запустити **procedural** — у формі передай `api_tests/procedural_approach`.
 
 Готовий файл «з усім одразу» — у `lesson6/api-tests-with-inputs.yml`
 (якщо лінь правити свій — просто заміни).
