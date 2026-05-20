@@ -250,9 +250,72 @@ git push
 ```
 Через ~10 секунд побачиш новий запуск у Actions.
 
-### Спосіб 3: відкрити PR
-Створити PR у GitHub UI з гілки lesson6 у main (або lesson3).
-Workflow автоматично запуститься як check на PR.
+### Спосіб 3: відкрити Pull Request
+
+Тут перевіряємо найважливіший use case для команди: **PR-checks**
+(CI бігає на PR і не дає змерджити зламаний код).
+
+#### Крок 1: створити feature-гілку від lesson6
+```bash
+git checkout lesson6
+git checkout -b feature/ci-pr-test
+```
+Назва будь-яка (`feature/...`, `fix/...`, `chore/...`).
+
+#### Крок 2: зробити маленьку зміну в backend
+Наприклад, оновити docstring у будь-якому ендпойнті:
+```bash
+# відкрий backend/app/routers/airports.py, додай рядок до docstring
+git add backend/app/routers/airports.py
+git commit -m "test: trigger CI on PR"
+```
+
+#### Крок 3: запушити feature-гілку
+```bash
+git push -u origin feature/ci-pr-test
+```
+
+#### Крок 4: створити PR у GitHub UI
+1. Відкрий свій репо
+2. GitHub покаже жовтий банер «`feature/ci-pr-test` had recent pushes» →
+   натисни **Compare & pull request**
+3. **base:** обери `lesson6` (або іншу target-гілку, у яку хочеш merge)
+4. **compare:** `feature/ci-pr-test`
+5. Натисни **Create pull request**
+
+#### Крок 5: подивися на CI-check у PR
+1. Внизу сторінки PR — секція **«Some checks haven't completed yet»**
+2. Бачиш job **API tests** зі статусом 🟡 «In progress»
+3. Через ~1 хв 🟢 «All checks have passed» (або ❌ якщо щось зламав)
+4. Клацни **Details** біля чека — переходиш у лог workflow
+
+#### Крок 6: спробувати замерджити при червоному CI
+
+Це **головний демонстраційний момент** — щоб побачити захист від bad merge:
+
+1. У `feature/ci-pr-test` навмисно **зламай** один тест (поміняй очікуваний
+   статус код у будь-якому тесті — наприклад `assert response.status_code == 999`)
+2. `git commit -am "test: break CI on purpose" && git push`
+3. У PR побачиш ❌ «1 failing check»
+4. Кнопка **Merge pull request** **БУДЕ ДОСТУПНА** за дефолтом (GitHub
+   не блокує сам — це треба окремо налаштувати)
+
+#### Крок 7 (опційно): зробити CI-чек обовʼязковим
+
+Щоб **фізично заборонити merge без зеленого CI**:
+
+1. **Settings → Branches** у твоєму репо
+2. **Add branch protection rule**
+3. **Branch name pattern:** `lesson6` (або яка цільова гілка)
+4. ✅ **Require status checks to pass before merging**
+5. У списку чеків додай **api-tests** (зʼявиться після першого запуску workflow)
+6. ✅ **Save changes**
+
+Тепер червоний CI **блокує** merge — кнопка стане сірою, з підказкою
+«Required statuses must pass before merging».
+
+Це **production-grade захист**. У серйозних командах гілка `main`
+**завжди** під такими правилами.
 
 ---
 
