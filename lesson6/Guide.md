@@ -352,19 +352,6 @@ Backend не встиг піднятися. Збільш ліміт у waiting-s
 
 ---
 
-## 🎯 Що далі (поза скоупом цього уроку)
-
-- **Coverage report** — `pytest --cov` + публікація badge у README
-- **Matrix-build** — паралельно sync vs xdist (бенчмарки в CI)
-- **Cache pip** — кешувати залежності між запусками (швидше)
-- **JUnit XML** — структуровані звіти у GitHub UI
-- **Slack/Discord notifications** — повідомлення в чат при падінні
-- **CD** — автодеплой на staging при зеленому main
-
-Це все — окремі уроки.
-
----
-
 ## 📚 Що почитати
 
 - **GitHub Actions docs:** https://docs.github.com/en/actions
