@@ -13,7 +13,7 @@ def test_get_list_airports_returns_valid_schema(http_client):
     """Відповідь відповідає Pydantic-схемі."""
     # Крок 1: запит до API
     response = get_airports_request(http_client)
-    assert response.status_code == 200
+    assert response.status_code == 999
 
     # Крок 2: валідація структури через Pydantic
     TypeAdapter(list[AirportResponseModel]).validate_python(response.json())
