@@ -1,0 +1,55 @@
+name: API tests
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'backend/**'
+      - 'api_tests/**'
+      - '.github/workflows/api-tests.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'api_tests/**'
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Start backend + Postgres (docker-compose)
+        run: docker compose up -d --build
+
+      - name: Wait for backend to be healthy
+        run: |
+          for i in {1..30}; do
+            if curl -sS http://localhost:8000/health | grep -q '"db":"connected"'; then
+              echo "Backend ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Backend did not start in time"
+          docker compose logs backend
+          exit 1
+
+      - name: Seed test data
+        run: docker compose exec -T backend python -m app.seed
+
+      - name: Install test dependencies
+        run: pip install -r api_tests/oop_approach/requirements.txt
+
+      - name: Run pytest
+        working-directory: api_tests/oop_approach
+        run: pytest -v
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
