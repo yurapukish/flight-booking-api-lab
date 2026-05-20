@@ -195,25 +195,19 @@ Pytest, httpx, pydantic — на хост-машині (не в контейне
 ## 🚀 Як перевірити, що CI працює
 
 > ⚠️ **Якщо ти не власник цього репозиторію** — у тебе немає прав
-> запустити Actions тут. Спочатку **скопіюй проєкт собі**:
+> запустити Actions тут. Спочатку **залий проєкт у свій GitHub**:
 >
-> **Варіант A — Fork (1 клік, рекомендовано):**
-> 1. Натисни кнопку **Fork** угорі на сторінці репо
-> 2. Перейди у свій fork → вкладка **Actions**
-> 3. У форках Actions **вимкнено за замовчуванням** — натисни
->    «I understand my workflows, go ahead and enable them»
-> 4. Тепер можеш робити push / Run workflow у **своєму** форку
+> 1. Створи **порожній** репо на своєму GitHub (через UI, без README)
+> 2. Локально:
+>    ```bash
+>    git clone https://github.com/yurapukish/flight-booking-api-lab.git
+>    cd flight-booking-api-lab
+>    git remote set-url origin https://github.com/ТВІЙ_USERNAME/НОВИЙ_РЕПО.git
+>    git push -u origin lesson6
+>    ```
+> 3. Зайди у свій новий репо → вкладка **Actions** — workflow зʼявиться там.
 >
-> **Варіант B — Clone у свій новий репо:**
-> ```bash
-> git clone https://github.com/yurapukish/flight-booking-api-lab.git
-> cd flight-booking-api-lab
-> git remote set-url origin https://github.com/ТВІЙ_USERNAME/НОВИЙ_РЕПО.git
-> git push -u origin lesson6
-> ```
-> Створи спершу порожній репо на своєму GitHub, потім роби `set-url`.
->
-> Усі інструкції нижче — для **твого** клону / форку.
+> Усі інструкції нижче — для **твого** репозиторію.
 
 ### Спосіб 1: ручний запуск (для QA)
 1. Зайди в репо → вкладка **Actions**
