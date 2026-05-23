@@ -30,8 +30,8 @@ git clone https://github.com/yurapukish/flight-booking-api-lab.git
 cd flight-booking-api-lab
 # Дві гілки для цього уроку:
 #   lesson4       — тільки процедурний підхід (історичний варіант, Phase 1)
-#   lesson4-oop   — процедурний + OOP (повний скоуп уроку, рекомендовано)
-git checkout lesson4-oop
+#   lesson4-first-tests   — процедурний + OOP (повний скоуп уроку, рекомендовано)
+git checkout lesson4-first-tests
 ```
 
 - [ ] Папка проєкту відкрита в IDE

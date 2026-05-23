@@ -118,4 +118,4 @@
 **Документація:**
 - [ ] README оновлений: секція «How to run tests»
 - [ ] `lesson4-first-tests/Guide.md` написаний як step-by-step walkthrough
-- [ ] PR створено в `lesson4` гілку (Phase 1) і `lesson4-oop` (Phase 1 + 2)
+- [ ] PR створено в `lesson4` гілку (Phase 1) і `lesson4-first-tests` (Phase 1 + 2)

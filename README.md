@@ -10,16 +10,15 @@ Each lesson adds a new layer — backend, tests, CI, security, performance.
 ```bash
 git clone https://github.com/yurapukish/flight-booking-api-lab.git
 cd flight-booking-api-lab
-git checkout lesson3            # full backend with REST API
+git checkout lesson4-first-tests        # backend + pytest suite (procedural + OOP)
 docker-compose up -d --build
 docker-compose exec backend python -m app.seed
 open http://localhost:8000/docs
 ```
 
-For **tests**, switch to one of:
-- `git checkout lesson4` → procedural pytest suite (~80 tests)
-- `git checkout lesson4-oop` → OOP API-client pattern (Page Object for APIs)
-- `git checkout lesson5` → async tests + pytest-xdist + race-condition reproduction
+Інші варіанти:
+- `git checkout lesson3` → лише backend без тестів
+- `git checkout lesson4` → тести у процедурному стилі
 
 ---
 
@@ -187,23 +186,9 @@ Full backend with 12+ endpoints across **airports / flights / bookings**.
 
 Each split into `without_db/` (black-box HTTP) and `with_db/` (grey-box with direct SQL) using `@pytest.mark.db` marker.
 
-**Branches:** `lesson4` (procedural) and `lesson4-oop` (both approaches side-by-side).
+> 📘 **Step-by-step walkthrough:** [`lesson4-first-tests/Guide.md`](./lesson4-first-tests/Guide.md) — кожне рішення з обґрунтуванням, реальний код, домашнє завдання. Plus PM ticket + QA prep checklist у тій же папці.
 
----
-
-## 📍 Lesson 5: Async + pytest-xdist + concurrency
-
-- ✅ `pytest-asyncio` + `pytest-xdist` (no backend changes needed)
-- ✅ `AsyncAirportsClient` extending sync `AirportsClient` (`httpx.AsyncClient`)
-- ✅ **Race-condition reproducer**: 10 passengers compete for the same seat — exactly 1 success + 9 conflicts ([`test_concurrent_seat_booking.py`](./api_tests/oop_approach/tests/_concurrency/test_concurrent_seat_booking.py))
-- ✅ Real benchmarks on 500 requests (`lesson5/04_load_benchmark_500.md`):
-  - sync sequential: 4.64s
-  - sync xdist -n 4: 5.89s (overhead > benefit on fast tests)
-  - async sequential: 21.25s (per-test setup overhead)
-  - async `gather(50)`: 0.60s (true concurrent power)
-- ✅ Found infrastructure ceilings: `httpx pool=100`, `SQLAlchemy pool=15`
-
-**Branch:** `lesson5`.
+**Branches:** `lesson4` (procedural) and `lesson4-first-tests` (both approaches side-by-side).
 
 ---
 
@@ -212,15 +197,9 @@ Each split into `without_db/` (black-box HTTP) and `with_db/` (grey-box with dir
 - **Lesson 1** — ✅ Skeleton + `/health`
 - **Lesson 2** — ✅ Data models + seed
 - **Lesson 3** — ✅ REST + Auth + Validation
-- **Lesson 4** — ✅ pytest suite (procedural + OOP)
-- **Lesson 5** — ✅ Async + xdist + concurrency
-- **Lesson 6** — 🔜 Test isolation: per-worker test DB (fixing race conditions found in Lesson 5)
-- **Lesson 7** — 🔜 Alembic migrations
-- **Lesson 8** — 🔜 GitHub Actions CI (lint + tests + coverage on every PR)
-- **Lesson 9** — 🔜 JWT auth (replacing header-based)
-- **Lesson 10** — 🔜 Load testing with Locust
-- **Lesson 11** — 🔜 Security scan with OWASP ZAP
-- **Lesson 12** — 🔜 WebSocket: real-time seat availability + WS tests
+- **Lesson 4** — ✅ pytest suite (procedural + OOP) + step-by-step Guide
+
+More lessons in their own branches — check back later.
 
 ---
 
@@ -229,19 +208,10 @@ Each split into `without_db/` (black-box HTTP) and `with_db/` (grey-box with dir
 This is a **lesson-by-lesson repo without a single `main`**. Each lesson lives in its own branch:
 
 ```bash
-git branch -a          # see all branches
-git log --oneline      # see commit history per branch
-git checkout lesson3   # try a specific stage
+git branch -a                # see all branches
+git log --oneline            # see commit history of current branch
+git checkout lesson<N>       # jump to a specific lesson
 ```
-
-| If you want… | Use branch |
-|---|---|
-| Bare scaffold (FastAPI + Postgres) | `lesson1` |
-| + data models + seed | `lesson2` |
-| Full working backend (`/docs`, full CRUD) | **`lesson3`** |
-| Backend + test suite (procedural) | `lesson4` |
-| Backend + tests in OOP style | `lesson4-oop` |
-| Everything above + async + concurrency | **`lesson5`** |
 
 ---
 

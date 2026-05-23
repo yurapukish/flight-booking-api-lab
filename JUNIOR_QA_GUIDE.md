@@ -346,24 +346,17 @@ lsof -i :8000   # macOS / Linux
 
 ## 🗺 Що далі — план уроків
 
-Цей проєкт побудований **по уроках**, кожен у своїй git-гілці і PR-і. На момент написання цього гайду готові:
+Цей проєкт побудований **по уроках**, кожен у своїй git-гілці і PR-і. На цей момент готові:
 
 - ✅ **Lesson 1** — Skeleton + `/health`
 - ✅ **Lesson 2** — Data models + seed
-- ✅ **Lesson 3** — REST endpoints + Pydantic schemas + Auth + Validation (те, що ти зараз тестуєш)
+- ✅ **Lesson 3** — REST endpoints + Pydantic schemas + Auth + Validation
+- ✅ **Lesson 4** — `pytest`-suite (procedural + OOP, ~80 тестів) — **ти зараз на цій гілці**
+  - 📘 Step-by-step гайд: [`lesson4-first-tests/Guide.md`](./lesson4-first-tests/Guide.md)
+  - 🎫 PM-тикет: [`lesson4-first-tests/01_task_from_pm.md`](./lesson4-first-tests/01_task_from_pm.md)
+  - ✅ Prep-чек-лист: [`lesson4-first-tests/02_qa_prep_guide.md`](./lesson4-first-tests/02_qa_prep_guide.md)
 
-**Найближче — те, що буде найкорисніше для QA:**
-
-- 🔜 **Lesson 4** — `pytest` + фікстури + ізоляція тестової БД (написати свої перші 30+ тестів)
-- 🔜 **Lesson 5** — Coverage + parametrize + edge cases (90%+ coverage)
-- 🔜 **Lesson 6** — Async tests з `httpx.AsyncClient` і `pytest-asyncio`
-- 🔜 **Lesson 7** — `pytest-xdist` для паралельного запуску
-- 🔜 **Lesson 8** — Alembic міграції (професійна зміна схеми)
-- 🔜 **Lesson 9** — GitHub Actions CI: тести на кожен PR + coverage badge
-- 🔜 **Lesson 10** — JWT-авторизація замість простого header
-- 🔜 **Lesson 11** — Locust load testing (як проєкт поводиться під 1000 RPS?)
-- 🔜 **Lesson 12** — OWASP ZAP security scan у CI
-- 🔜 **Lesson 13** — WebSocket для real-time оновлень бронювань
+Наступні уроки будуть у своїх гілках — зайди на репо коли вони з'являться.
 
 ---
 
