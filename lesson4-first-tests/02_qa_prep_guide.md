@@ -28,11 +28,15 @@
 ```bash
 git clone https://github.com/yurapukish/flight-booking-api-lab.git
 cd flight-booking-api-lab
-git checkout lesson4
+# Дві гілки для цього уроку:
+#   lesson4       — тільки процедурний підхід (історичний варіант, Phase 1)
+#   lesson4-oop   — процедурний + OOP (повний скоуп уроку, рекомендовано)
+git checkout lesson4-oop
 ```
 
 - [ ] Папка проєкту відкрита в IDE
-- [ ] Бачиш гілку `lesson4` у статусі (`git status`)
+- [ ] Бачиш гілку у статусі (`git status`)
+- [ ] У корені є папка `lesson4-first-tests/` (тут лежить `Guide.md` із покроковою імплементацією)
 
 ---
 
@@ -169,10 +173,7 @@ backend/app/
 
 Якщо всі чекбокси вище ✅ — **ти готовий**.
 
-Наступний крок:
-1. Створити `api_tests/requirements.txt` з `pytest` і `httpx`.
-2. Прочитати завдання від ПМ.
-3. Почати автоматизацію тестів.
+**Наступний крок:** відкрити `lesson4-first-tests/Guide.md` і йти по step-ах від Step 0 (огляд) і далі. Гайд показує **що** ми створюємо, **який саме код** опинився в репі та **чому** саме так — синхронно з реальними файлами в `api_tests/`.
 
 ---
 
