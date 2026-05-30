@@ -23,7 +23,6 @@ class AsyncAirportsClient(AirportsClient):
     """
 
     def __init__(self, http_client: httpx.AsyncClient):
-        # НЕ викликаємо super().__init__ — він чекає sync Client.
         self._http = http_client
 
     async def list(self, city: str | None = None) -> httpx.Response:
