@@ -1,63 +1,110 @@
- Команди бенчмарка (по черзі)
+# ⚡ Lesson 5 — Async + pytest-xdist
 
-  # 1. sync sequential
-  time pytest tests/airports/without_db tests/airports/with_db
-  -q
+> **Питання уроку:** як прискорити тестовий suite — переписати на `async` чи запустити в кілька процесів через `xdist`?
+> **Спойлер:** async suite *не* пришвидшує. xdist — пришвидшує.
 
-  # 2. sync + xdist (4 воркери)
-  time pytest tests/airports/without_db tests/airports/with_db
-  -q -n 4
+| 📄 Файл | Що всередині |
+|---|---|
+| **`Guide.md`** | покроковий walkthrough (Step 0 → 7) |
+| **`02_async_vs_xdist.md`** | концепт: чим async відрізняється від xdist |
+| **`README.md`** | 👈 ти тут — команди запуску + реальні цифри |
 
-  # 3. async sequential
-  time pytest tests/airports/async_tests -q
+---
 
-  # 4. async + xdist
-  time pytest tests/airports/async_tests -q -n 4
+## 🏷️ Маркер `remote`
 
-  # 5. ALL sequential (sync + async)
-  time pytest tests/airports -q
+Remote-тести (проти `restful-booker`) потребують мережі й позначені маркером:
 
-  # 6. ALL + xdist (тут вилазять race conditions)
-  time pytest tests/airports -q -n 4
+```bash
+pytest -m remote          # тільки remote
+pytest -m "not remote"    # усе інше (офлайн / CI без мережі)
+```
 
-  Що дивитися у виводі
+---
 
-  time дає три рядки в кінці — нас цікавить real:
+## 1️⃣ Той самий suite: `sync` vs `async` vs `xdist`
 
-  pytest tests/...  1.50s user 0.41s system 67% cpu  2.822 total
-                                                       ^^^^^^
+7 функціональних флоу у двох версіях — однакові сценарії, різниця лише `async`/`await`:
 
-  wall-clock час
+```
+tests/_remote/
+├── sync_suite/    →  booker_sync
+└── async_suite/   →  booker_async + await
+```
 
-  Або, простіше, дивись pytest-рядок:
-  ============== 26 passed in 1.37s ==============
-                                ^^^^^
-                            це і є pytest-час
+```bash
+pytest tests/_remote/sync_suite  -m remote          # 1️⃣ sync
+pytest tests/_remote/async_suite -m remote          # 2️⃣ async
+pytest tests/_remote/sync_suite  -m remote -n 4     # 3️⃣ sync + 4 воркери (xdist)
+```
 
-  Корисні прапори
+| Режим | ⏱️ Час (8 тестів) | Speedup |
+|:---|:---:|:---:|
+| 🐌 SYNC | `~5.0s` | baseline |
+| 🐌 ASYNC | `~5.0s` | **×1.0 — не швидше** |
+| 🚀 SYNC + xdist `-n 4` | `~2.3s` | **×2.2** |
 
-  ┌─────────────┬───────────────────────────────┐
-  │   Прапор    │            Що дає             │
-  ├─────────────┼───────────────────────────────┤
-  │ -v          │ verbose, кожен тест по імені  │
-  ├─────────────┼───────────────────────────────┤
-  │ -q          │ quiet, тільки підсумок        │
-  ├─────────────┼───────────────────────────────┤
-  │ -n 4        │ 4 xdist-воркери               │
-  ├─────────────┼───────────────────────────────┤
-  │ -n auto     │ стільки воркерів, скільки CPU │
-  ├─────────────┼───────────────────────────────┤
-  │ --no-header │ прибрати pytest header        │
-  ├─────────────┼───────────────────────────────┤
-  │ -x          │ зупинитись на першому fail    │
-  ├─────────────┼───────────────────────────────┤
-  │ --co        │ тільки collect, не запускати  │
-  └─────────────┴───────────────────────────────┘
+---
 
-  Запитуй якщо хочеш конкретний сценарій
+## 2️⃣ Масштаб `50 / 100 / 200` (pytest-repeat)
 
-  Наприклад «запусти 50 разів той самий тест і подивись чи він
-  flaky» — це окрема команда:
-  pytest tests/airports/async_tests/test_async_airports.py::test
-  _concurrent_creates_with_same_code_one_succeeds --count=50
-  (потрібен pytest-repeat)
+Повторюємо один uniform-read (`GET /ping`) через `--count=N` — щоб тренд було видно:
+
+```bash
+# підставляй N = 50, 100, 200
+pytest tests/_remote/benchmark/test_ping_sync.py  -m remote --count=N
+pytest tests/_remote/benchmark/test_ping_async.py -m remote --count=N
+pytest tests/_remote/benchmark/test_ping_sync.py  -m remote --count=N -n 4
+```
+
+| N | 🐌 SYNC | 🐌 ASYNC | 🚀 SYNC + xdist (4) | Speedup |
+|:---:|:---:|:---:|:---:|:---:|
+| `50` | 21.49s | 21.42s | **6.22s** | `3.5×` |
+| `100` | 42.54s | 42.72s | **11.20s** | `3.8×` |
+| `200` | 85.52s | 86.10s | **22.02s** | `3.9×` |
+
+```
+час
+ 90s ┤                              ╭─ SYNC / ASYNC (лінійно)
+     │                         ╭────╯
+ 60s ┤                    ╭────╯
+     │               ╭────╯
+ 30s ┤          ╭────╯
+     │     ╭────╯ ___________________ SYNC + xdist (×3.9, тримається)
+  0s ┼─────●─────────●─────────●──────
+        50        100       200   тестів
+```
+
+> ⚠️ Цифри плавають із мережею/навантаженням публічного сервера — важливі **співвідношення**, не абсолютні значення.
+
+---
+
+## 🎯 Що з цього видно
+
+> **1. Перепис suite на `async` НЕ прискорює.**
+> `sync ≈ async` на всіх масштабах. pytest виконує тест-функції **послідовно**, навіть `async def` — await-ить по черзі, не одночасно.
+
+> **2. `xdist` прискорює ~3.5–3.9× і виграш тримається.**
+> `-n 4` ділить тести на 4 процеси. Працює для будь-яких тестів **без переписування коду**.
+
+> **3. `async` виграє не на рівні suite, а *всередині* тесту.**
+> Через `asyncio.gather` — race conditions, паралельні запити. Див. `Guide.md` → Step 4-5.
+
+| 🎯 Хочеш… | 🛠️ Бери |
+|:---|:---|
+| прискорити suite | **`xdist -n auto`** |
+| паралельні запити в тесті / repro race | **`async` + `gather`** |
+| звичайний CRUD-тест | **`sync`** |
+
+---
+
+## 🚩 Корисні прапори
+
+| Прапор | Що дає |
+|:---|:---|
+| `-v` | кожен тест по імені |
+| `-q` | тільки підсумок |
+| `-n 4` / `-n auto` | xdist: 4 воркери / по числу CPU |
+| `--count=N` | повторити кожен тест N разів *(pytest-repeat)* |
+| `-s` | показувати `print` (timing у деяких тестах) |
+| `-x` | зупинитись на першому fail |
