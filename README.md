@@ -10,7 +10,7 @@ Each lesson adds a new layer — backend, tests, CI, security, performance.
 ```bash
 git clone https://github.com/yurapukish/flight-booking-api-lab.git
 cd flight-booking-api-lab
-git checkout lesson4-first-tests        # backend + pytest suite (procedural + OOP)
+git checkout lesson5-async-concurrency  # backend + tests + async/xdist benchmarks
 docker-compose up -d --build
 docker-compose exec backend python -m app.seed
 open http://localhost:8000/docs
@@ -18,6 +18,7 @@ open http://localhost:8000/docs
 
 Інші варіанти:
 - `git checkout lesson3` → лише backend без тестів
+- `git checkout lesson4-first-tests` → тести (procedural + OOP), без async
 
 ---
 
@@ -191,12 +192,29 @@ Each split into `without_db/` (black-box HTTP) and `with_db/` (grey-box with dir
 
 ---
 
+## 📍 Lesson 5: Async + pytest-xdist
+
+Як прискорити suite — переписати на `async` чи запустити в кілька процесів?
+
+- ✅ `AsyncAirportsClient` + async-фікстури (`httpx.AsyncClient`, `asyncio_mode=auto`)
+- ✅ **Race-condition repro**: 10 пасажирів конкурують за одне місце через `asyncio.gather` — рівно 1 виграє, 9 × 409
+- ✅ Реальні QA-флоу проти remote API (`restful-booker`): CRUD + auth + search, sync **і** async
+- ✅ Бенчмарк sync vs async vs xdist на масштабі 50/100/200 (`pytest-repeat`)
+- 🎯 Висновок: **async-suite не швидший** (pytest послідовний), пришвидшує **xdist** (~3.9×); async цінний для `gather` всередині тесту
+
+> 📘 **Walkthrough + цифри:** [`lesson5-async-concurrency/Guide.md`](./lesson5-async-concurrency/Guide.md) + [`README`](./lesson5-async-concurrency/README.md)
+
+**Branch:** `lesson5-async-concurrency`.
+
+---
+
 ## 🗺️ Roadmap
 
 - **Lesson 1** — ✅ Skeleton + `/health`
 - **Lesson 2** — ✅ Data models + seed
 - **Lesson 3** — ✅ REST + Auth + Validation
 - **Lesson 4** — ✅ pytest suite (procedural + OOP) + step-by-step Guide
+- **Lesson 5** — ✅ Async + pytest-xdist + concurrency repro
 
 More lessons in their own branches — check back later.
 

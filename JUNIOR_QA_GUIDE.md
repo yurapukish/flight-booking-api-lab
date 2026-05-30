@@ -351,10 +351,11 @@ lsof -i :8000   # macOS / Linux
 - ✅ **Lesson 1** — Skeleton + `/health`
 - ✅ **Lesson 2** — Data models + seed
 - ✅ **Lesson 3** — REST endpoints + Pydantic schemas + Auth + Validation
-- ✅ **Lesson 4** — `pytest`-suite (procedural + OOP, ~80 тестів) — **ти зараз на цій гілці**
+- ✅ **Lesson 4** — `pytest`-suite (procedural + OOP, ~80 тестів)
   - 📘 Step-by-step гайд: [`lesson4-first-tests/Guide.md`](./lesson4-first-tests/Guide.md)
-  - 🎫 PM-тикет: [`lesson4-first-tests/01_task_from_pm.md`](./lesson4-first-tests/01_task_from_pm.md)
-  - ✅ Prep-чек-лист: [`lesson4-first-tests/02_qa_prep_guide.md`](./lesson4-first-tests/02_qa_prep_guide.md)
+- ✅ **Lesson 5** — Async + pytest-xdist + concurrency — **ти зараз на цій гілці**
+  - 📘 Walkthrough: [`lesson5-async-concurrency/Guide.md`](./lesson5-async-concurrency/Guide.md)
+  - ⚡ Команди + цифри: [`lesson5-async-concurrency/README.md`](./lesson5-async-concurrency/README.md)
 
 Наступні уроки будуть у своїх гілках — зайди на репо коли вони з'являться.
 
