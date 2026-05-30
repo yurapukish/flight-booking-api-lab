@@ -18,7 +18,6 @@ open http://localhost:8000/docs
 
 Інші варіанти:
 - `git checkout lesson3` → лише backend без тестів
-- `git checkout lesson4` → тести у процедурному стилі
 
 ---
 
