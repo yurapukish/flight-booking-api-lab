@@ -15,9 +15,9 @@
   git clone https://github.com/yurapukish/flight-booking-api-lab.git
   cd flight-booking-api-lab
   git remote set-url origin https://github.com/ТВІЙ_USERNAME/НОВИЙ_РЕПО.git
-  git push -u origin lesson6
+  git push -u origin lesson6-ci-cd
   ```
-- [ ] У своєму репо → вкладка **Actions** → переключи view на `lesson6`
+- [ ] У своєму репо → вкладка **Actions** → переключи view на `lesson6-ci-cd`
 - [ ] Бачу **обидва** workflows: «API tests» та «API tests — manual (with variables)»
 
 ---
@@ -39,7 +39,7 @@
 - [ ] Зрозумій, чому — згадай про `paths:` фільтр
 
 ### Pull Request
-- [ ] Створив feature-branch від `lesson6`
+- [ ] Створив feature-branch від `lesson6-ci-cd`
 - [ ] Зробив зміну в `backend/`, push
 - [ ] Відкрив PR у GitHub UI
 - [ ] CI запустився як check на PR (внизу сторінки PR)
@@ -81,7 +81,7 @@
 Зробити CI **обовʼязковим** для merge:
 
 - [ ] Settings → Branches → **Add branch protection rule**
-- [ ] **Branch name pattern:** `lesson6`
+- [ ] **Branch name pattern:** `lesson6-ci-cd`
 - [ ] ✅ **Require status checks to pass before merging**
 - [ ] У списку чеків додай `api-tests` (зʼявляється після першого запуску)
 - [ ] Save

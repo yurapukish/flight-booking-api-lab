@@ -203,7 +203,7 @@ Pytest, httpx, pydantic — на хост-машині (не в контейне
 >    git clone https://github.com/yurapukish/flight-booking-api-lab.git
 >    cd flight-booking-api-lab
 >    git remote set-url origin https://github.com/ТВІЙ_USERNAME/НОВИЙ_РЕПО.git
->    git push -u origin lesson6
+>    git push -u origin lesson6-ci-cd
 >    ```
 > 3. Зайди у свій новий репо → вкладка **Actions** — workflow зʼявиться там.
 >
@@ -216,7 +216,7 @@ Pytest, httpx, pydantic — на хост-машині (не в контейне
 
 1. Зайди у свій репо → вкладка **Actions**
 2. Зліва обери **API tests**
-3. Кнопка **Run workflow** → у дропдауні вибери гілку (зазвичай `lesson6`)
+3. Кнопка **Run workflow** → у дропдауні вибери гілку (зазвичай `lesson6-ci-cd`)
    → **Run workflow**
 4. **Тригер спрацював, пайплайн стартує** — у списку зʼявиться новий run
    зі статусом 🟡 «In progress»
@@ -255,9 +255,9 @@ git push
 Тут перевіряємо найважливіший use case для команди: **PR-checks**
 (CI бігає на PR і не дає змерджити зламаний код).
 
-#### Крок 1: створити feature-гілку від lesson6
+#### Крок 1: створити feature-гілку від lesson6-ci-cd
 ```bash
-git checkout lesson6
+git checkout lesson6-ci-cd
 git checkout -b feature/ci-pr-test
 ```
 Назва будь-яка (`feature/...`, `fix/...`, `chore/...`).
@@ -279,7 +279,7 @@ git push -u origin feature/ci-pr-test
 1. Відкрий свій репо
 2. GitHub покаже жовтий банер «`feature/ci-pr-test` had recent pushes» →
    натисни **Compare & pull request**
-3. **base:** обери `lesson6` (або іншу target-гілку, у яку хочеш merge)
+3. **base:** обери `lesson6-ci-cd` (або іншу target-гілку, у яку хочеш merge)
 4. **compare:** `feature/ci-pr-test`
 5. Натисни **Create pull request**
 
@@ -306,7 +306,7 @@ git push -u origin feature/ci-pr-test
 
 1. **Settings → Branches** у твоєму репо
 2. **Add branch protection rule**
-3. **Branch name pattern:** `lesson6` (або яка цільова гілка)
+3. **Branch name pattern:** `lesson6-ci-cd` (або яка цільова гілка)
 4. ✅ **Require status checks to pass before merging**
 5. У списку чеків додай **api-tests** (зʼявиться після першого запуску workflow)
 6. ✅ **Save changes**
