@@ -353,9 +353,12 @@ lsof -i :8000   # macOS / Linux
 - ✅ **Lesson 3** — REST endpoints + Pydantic schemas + Auth + Validation
 - ✅ **Lesson 4** — `pytest`-suite (procedural + OOP, ~80 тестів)
   - 📘 Step-by-step гайд: [`lesson4-first-tests/Guide.md`](./lesson4-first-tests/Guide.md)
-- ✅ **Lesson 5** — Async + pytest-xdist + concurrency — **ти зараз на цій гілці**
+- ✅ **Lesson 5** — Async + pytest-xdist + concurrency
   - 📘 Walkthrough: [`lesson5-async-concurrency/Guide.md`](./lesson5-async-concurrency/Guide.md)
   - ⚡ Команди + цифри: [`lesson5-async-concurrency/README.md`](./lesson5-async-concurrency/README.md)
+- ✅ **Lesson 6** — CI/CD через GitHub Actions — **ти зараз на цій гілці**
+  - 📘 Walkthrough: [`lesson6-ci-cd/Guide.md`](./lesson6-ci-cd/Guide.md)
+  - 📝 Домашка: [`lesson6-ci-cd/HOMEWORK.md`](./lesson6-ci-cd/HOMEWORK.md)
 
 Наступні уроки будуть у своїх гілках — зайди на репо коли вони з'являться.
 

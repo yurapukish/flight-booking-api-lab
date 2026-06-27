@@ -10,7 +10,7 @@ Each lesson adds a new layer — backend, tests, CI, security, performance.
 ```bash
 git clone https://github.com/yurapukish/flight-booking-api-lab.git
 cd flight-booking-api-lab
-git checkout lesson5-async-concurrency  # backend + tests + async/xdist benchmarks
+git checkout lesson6-ci-cd  # backend + tests + async + GitHub Actions CI
 docker-compose up -d --build
 docker-compose exec backend python -m app.seed
 open http://localhost:8000/docs
@@ -19,6 +19,7 @@ open http://localhost:8000/docs
 Інші варіанти:
 - `git checkout lesson3` → лише backend без тестів
 - `git checkout lesson4-first-tests` → тести (procedural + OOP), без async
+- `git checkout lesson5-async-concurrency` → + async / xdist бенчмарки
 
 ---
 
@@ -179,10 +180,10 @@ Full backend with 12+ endpoints across **airports / flights / bookings**.
 
 `api_tests/` directory with two parallel approaches for educational comparison:
 
-| Folder | Style | Tests |
-|---|---|---|
-| `api_tests/procedural_approach/` | flat functions + helpers | 81 |
-| `api_tests/oop_approach/` | API client classes (Page Object) | 76 |
+| Folder | Style                             | Tests |
+|---|-----------------------------------|---|
+| `api_tests/procedural_approach/` | flat functions + helpers          | 81 |
+| `api_tests/oop_approach/` | API client classes (Page O2bject) | 76 |
 
 Each split into `without_db/` (black-box HTTP) and `with_db/` (grey-box with direct SQL) using `@pytest.mark.db` marker.
 
@@ -208,6 +209,21 @@ Each split into `without_db/` (black-box HTTP) and `with_db/` (grey-box with dir
 
 ---
 
+## 📍 Lesson 6: CI/CD через GitHub Actions
+
+Тести тепер ганяються автоматично — на push, на PR, або кнопкою з UI.
+
+- ✅ `.github/workflows/api-tests.yml` — авто-CI на push/PR (docker compose → seed → pytest procedural + OOP)
+- ✅ `api-tests-with-variables.yml` — manual-запуск з параметрами (`test_path`, `marker`, `workers`, `log_level`)
+- ✅ PR-checks + branch protection — червоний CI блокує merge
+- ✅ inputs / env / secrets — що куди передавати (і чому токени не в inputs)
+
+> 📘 **Walkthrough:** [`lesson6-ci-cd/Guide.md`](./lesson6-ci-cd/Guide.md) + [`HOMEWORK`](./lesson6-ci-cd/HOMEWORK.md)
+
+**Branch:** `lesson6-ci-cd`.
+
+---
+
 ## 🗺️ Roadmap
 
 - **Lesson 1** — ✅ Skeleton + `/health`
@@ -215,6 +231,7 @@ Each split into `without_db/` (black-box HTTP) and `with_db/` (grey-box with dir
 - **Lesson 3** — ✅ REST + Auth + Validation
 - **Lesson 4** — ✅ pytest suite (procedural + OOP) + step-by-step Guide
 - **Lesson 5** — ✅ Async + pytest-xdist + concurrency repro
+- **Lesson 6** — ✅ CI/CD — GitHub Actions (push / PR / manual)
 
 More lessons in their own branches — check back later.
 
