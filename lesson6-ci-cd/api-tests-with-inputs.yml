@@ -1,0 +1,62 @@
+name: API tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_path:
+        description: 'Шлях до тестів (напр. api_tests/oop_approach/tests/airports)'
+        type: string
+        default: 'api_tests/oop_approach'
+      marker:
+        description: 'Pytest marker (опц., напр. "not db")'
+        type: string
+        default: ''
+  push:
+    paths:
+      - 'backend/**'
+      - 'api_tests/**'
+      - '.github/workflows/api-tests.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'api_tests/**'
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Start backend + Postgres
+        run: docker compose up -d --build
+
+      - name: Wait for backend
+        run: |
+          for i in {1..30}; do
+            if curl -sS http://localhost:8000/health | grep -q '"db":"connected"'; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs backend
+          exit 1
+
+      - name: Seed test data
+        run: docker compose exec -T backend python -m app.seed
+
+      # Ставимо обидва набори залежностей одразу — щоб користувач міг передати
+      # будь-який test_path (procedural або oop) без додаткової логіки.
+      - name: Install test deps (both suites)
+        run: |
+          pip install -r api_tests/procedural_approach/requirements.txt
+          pip install -r api_tests/oop_approach/requirements.txt
+
+      - name: Run pytest
+        run: pytest ${{ inputs.test_path || 'api_tests/oop_approach' }} -v ${{ inputs.marker && format('-m "{0}"', inputs.marker) || '' }}
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

@@ -1,0 +1,107 @@
+# ─────────────────────────────────────────────────────────────────────
+# Manual-only workflow для QA з параметрами.
+# Автоматичний CI на push/PR — окремий файл api-tests.yml.
+#
+# Як запустити:
+#   GitHub → Actions → "API tests — manual (with variables)" → Run workflow
+# ─────────────────────────────────────────────────────────────────────
+
+name: API tests — manual (with variables)
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_path:
+        description: 'Шлях до тестів (напр. api_tests/oop_approach/tests/airports)'
+        type: string
+        default: 'api_tests/oop_approach'
+
+      marker:
+        description: 'Pytest marker (опц., напр. "not db", "smoke")'
+        type: string
+        default: ''
+
+      parallel_workers:
+        description: 'Скільки паралельних воркерів (xdist). 1 = sequential.'
+        type: choice
+        options:
+          - '1'
+          - '2'
+          - '4'
+          - 'auto'
+        default: '1'
+
+      log_level:
+        description: 'pytest log level'
+        type: choice
+        options:
+          - 'WARNING'
+          - 'INFO'
+          - 'DEBUG'
+        default: 'WARNING'
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Start backend + Postgres
+        run: docker compose up -d --build
+
+      - name: Wait for backend
+        run: |
+          for i in {1..30}; do
+            if curl -sS http://localhost:8000/health | grep -q '"db":"connected"'; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs backend
+          exit 1
+
+      - name: Seed test data
+        run: docker compose exec -T backend python -m app.seed
+
+      # Ставимо ОБИДВА набори залежностей — щоб user міг передати будь-який path
+      - name: Install all test deps
+        run: |
+          pip install -r api_tests/procedural_approach/requirements.txt
+          pip install -r api_tests/oop_approach/requirements.txt
+
+      # Допоміжний step — показати в логу, з якими параметрами біжимо
+      - name: Echo parameters
+        env:
+          TEST_PATH: ${{ inputs.test_path }}
+          MARKER: ${{ inputs.marker }}
+          WORKERS: ${{ inputs.parallel_workers }}
+          LOG_LEVEL: ${{ inputs.log_level }}
+        run: |
+          echo "test_path       = $TEST_PATH"
+          echo "marker          = ${MARKER:-<none>}"
+          echo "parallel_workers= $WORKERS"
+          echo "log_level       = $LOG_LEVEL"
+
+      # ВАЖЛИВО: передаємо inputs у скрипт через env, не через ${{ }} в run.
+      # Це захищає від command injection, якщо хтось передасть зловмисний marker.
+      - name: Run pytest
+        env:
+          TEST_PATH: ${{ inputs.test_path }}
+          MARKER: ${{ inputs.marker }}
+          WORKERS: ${{ inputs.parallel_workers }}
+          LOG_LEVEL: ${{ inputs.log_level }}
+        run: |
+          if [ -n "$MARKER" ]; then
+            pytest "$TEST_PATH" -v -n "$WORKERS" \
+              --log-cli-level="$LOG_LEVEL" -m "$MARKER"
+          else
+            pytest "$TEST_PATH" -v -n "$WORKERS" \
+              --log-cli-level="$LOG_LEVEL"
+          fi
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
