@@ -1,0 +1,458 @@
+═══════════════════════════════════════════════════════════════════════
+  CHECK LIST — WebSocket /ws/dashboard
+  QA Lead perspective. Positive + negative + edge + protocol + resilience.
+═══════════════════════════════════════════════════════════════════════
+
+Легенда статусів:
+  [ ]  — кандидат на автотест (pytest + websockets)
+  [M]  — мануальна / exploratory перевірка (wscat / Postman / websocketking)
+  [P]  — performance / load (k6 / Locust + ws extension)
+  [S]  — security / future (коли додамо auth, TLS, rate-limit)
+
+Легенда інструментів (▸ HOW):
+  wscat              — CLI клієнт:  `wscat -c ws://localhost:8000/ws/dashboard`
+  websocat           — Swiss-army WS CLI (binary, scripted, load patterns)
+  websocketking.com  — GUI у браузері (швидкі мануальні сесії)
+  Postman / Insomnia — підтримують WS, зручно для команд + інспекції
+  httpx              — для перевірки HTTP-edge кейсів на WS-роуті
+  pytest + websockets — інтеграційні автотести (наш стек)
+  WireShark / tcpdump — raw frames + close-codes на TCP-рівні
+  docker logs        — серверна сторона (помилки/stacktraces)
+
+
+───────────────────────────────────────────────────────────────────────
+  1. CONNECTION & LIFECYCLE
+───────────────────────────────────────────────────────────────────────
+
+POSITIVE
+  [ ]  Підключення до ws://localhost:8000/ws/dashboard відкриває соккет
+       ▸ AUTO: websockets.connect(URL) → не кидає
+       ▸ MAN:  wscat -c ws://localhost:8000/ws/dashboard
+
+  [ ]  Перше повідомлення — welcome (event=system, "Connected", timestamp)
+       ▸ AUTO: assert json.loads(await ws.recv())["event"] == "system"
+       ▸ MAN:  wscat → побачиш одразу JSON-frame після connect
+
+  [ ]  Welcome timestamp у валідному ISO 8601 + ±5s від зараз
+       ▸ AUTO: datetime.fromisoformat(welcome["timestamp"])
+
+  [ ]  Послідовні підключення (connect → close → connect)
+       ▸ AUTO: 2× async with websockets.connect(...) у тесті
+       ▸ MAN:  wscat → Ctrl+C → wscat знову
+
+  [ ]  10 одночасних підключень — усі отримують welcome
+       ▸ AUTO: await asyncio.gather(*[connect() for _ in range(10)])
+       ▸ MAN:  10 вкладок websocketking.com / 10 терміналів з wscat
+
+  [ ]  EXIT акуратно закриває соккет (close code = 1000)
+       ▸ AUTO: ws.send("EXIT"); recv() raises ConnectionClosedOK code=1000
+       ▸ MAN:  wscat → ввести EXIT → "Disconnected (code: 1000, reason: '')"
+
+  [ ]  Reconnect після EXIT дає свіжий welcome
+       ▸ AUTO: connect → EXIT → reconnect → recv welcome
+
+NEGATIVE
+  [ ]  Підключення до неіснуючого шляху ws://.../ws/wrong → rejected
+       ▸ AUTO: pytest.raises(InvalidStatus) на websockets.connect(bad_url)
+       ▸ MAN:  wscat -c ws://localhost:8000/ws/nope → error: Unexpected server response: 403
+
+  [ ]  HTTP-запит на /ws/dashboard без Upgrade → 4xx
+       ▸ AUTO: httpx.get(http://.../ws/dashboard) → 4xx
+       ▸ MAN:  curl -i http://localhost:8000/ws/dashboard
+
+  [M]  Підключення до wss:// без TLS → fail
+       ▸ MAN:  wscat -c wss://localhost:8000/... → SSL error
+
+  [M]  Connect із дуже довгим query string (50kB+)
+       ▸ MAN:  python -c "print('A'*50000)" → wscat -c "ws://.../ws/dashboard?x=AAAA..."
+       ▸ AUTO: websockets.connect(f"{URL}?x={'A'*50000}") — assert ok OR rejected
+
+  [S]  Connect без Origin header / зі стороннім Origin
+       ▸ MAN:  curl -H "Origin: http://evil.com" --include --no-buffer -H "Connection: Upgrade"
+               -H "Upgrade: websocket" -H "Sec-WebSocket-Version: 13"
+               -H "Sec-WebSocket-Key: dGVzdA==" http://localhost:8000/ws/dashboard
+
+
+───────────────────────────────────────────────────────────────────────
+  2. EVENT DELIVERY (ticker → клієнт)
+───────────────────────────────────────────────────────────────────────
+
+POSITIVE
+  [ ]  Після welcome протягом 5s приходить ≥1 подія
+       ▸ AUTO: await asyncio.wait_for(ws.recv(), timeout=5)
+       ▸ MAN:  wscat → почекати кілька секунд після connect
+
+  [ ]  Кожна подія має поля: event, flight_number, message, timestamp
+       ▸ AUTO: assert all(k in event for k in [...])
+
+  [ ]  Усі 4 типи подій еventually з'являються
+       ▸ AUTO: зібрати 30 подій, set(events) ⊇ {delayed, departing, landing, boarding_call}
+       ▸ MAN:  wscat → ввести ALL → дивитись стрім ~30 сек
+
+  [ ]  delayed містить delay_minutes ∈ {15, 30, 45, 60}
+       ▸ AUTO: ws.send("DELAYED") → recv N подій → assert delay_minutes ∈ set
+       ▸ MAN:  wscat → DELAYED → дивитись поле delay_minutes
+
+  [ ]  boarding_call містить gate ∈ {A1, A5, B3, B7, C2, D9}
+       ▸ AUTO: ws.send("BOARDING_CALL") → перевіряти gate
+       ▸ MAN:  wscat → BOARDING_CALL
+
+  [ ]  flight_number відповідає реальному рейсу з БД
+       ▸ AUTO: SELECT flight_number FROM flights → set; всі event["flight_number"] ⊂ set
+       ▸ MAN:  docker-compose exec db psql -U flightuser -d flightdb -c "SELECT flight_number FROM flights;"
+               → порівняти з тим, що бачиш у wscat
+
+  [ ]  timestamps монотонно неспадає
+       ▸ AUTO: assert ts[i] >= ts[i-1] for i in range(1, n)
+
+  [ ]  Інтервал між подіями ≈ asyncio.sleep(N) ±50ms jitter
+       ▸ AUTO: вимір time.monotonic() між recv-ами
+       ▸ MAN:  wscat + око — на 0.7s видно ритм
+
+  [ ]  message — непорожній рядок з emoji-префіксом і flight_number
+       ▸ AUTO: assert event["flight_number"] in event["message"]
+
+NEGATIVE
+  [M]  Порожня БД (немає рейсів) → ticker мовчить, без crash
+       ▸ MAN:  docker-compose exec db psql ... -c "DELETE FROM flights;"
+               → wscat → жодних подій (тільки welcome), backend не падає
+               → потім seed знову
+
+  [M]  DB outage під час ticker (контейнер `db` зупинений)
+       ▸ MAN:  docker-compose stop db → wscat → дивитись логи backend (docker-compose logs -f backend)
+               → ticker не вішає сервер; підняти db → ticker оживає
+
+  [P]  Latency broadcast → recv (median, p95)
+       ▸ AUTO/P: server stamps timestamp at broadcast; client measures time.time() - ts
+
+
+───────────────────────────────────────────────────────────────────────
+  3. COMMANDS — positive
+───────────────────────────────────────────────────────────────────────
+
+  [ ]  EXIT → ConnectionClosed (code 1000)
+       ▸ AUTO: pytest.raises(ConnectionClosed)
+       ▸ MAN:  wscat → EXIT
+
+  [ ]  ALL → system ack "Filter cleared", далі знов всі типи
+       ▸ AUTO: send → recv ack → 15 подій → set(types) > 1
+       ▸ MAN:  wscat → LANDING → потім ALL → бачиш мікс знову
+
+  [ ]  DELAYED / DEPARTING / LANDING / BOARDING_CALL — ack + тільки цей тип
+       ▸ AUTO: parametrize над 4 типами
+       ▸ MAN:  wscat → ввести кожну → побачити "Filter set to X"
+
+  [ ]  Lowercase / MixedCase: "landing", "LaNdInG" → працює
+       ▸ AUTO: parametrize
+       ▸ MAN:  wscat → ввести в різному регістрі
+
+  [ ]  Whitespace: "  EXIT  " → працює (strip)
+       ▸ AUTO: ws.send("   LANDING   ")
+       ▸ MAN:  wscat — ввести з пробілами
+
+  [ ]  Перемикання: LANDING → DEPARTING → ALL — усі переходи коректні
+       ▸ AUTO: послідовно 3 send + 3 ack
+       ▸ MAN:  wscat
+
+
+───────────────────────────────────────────────────────────────────────
+  4. COMMANDS — negative
+───────────────────────────────────────────────────────────────────────
+
+  [ ]  Довільний текст ("foo") → "Unknown command: 'foo'"
+       ▸ AUTO: send("foo") → assert msg starts with "Unknown command:"
+       ▸ MAN:  wscat → ввести foo
+
+  [ ]  Empty / whitespace-only → unknown
+       ▸ AUTO: send("") / send("   ")
+       ▸ MAN:  wscat → натиснути Enter / ввести пробіли
+
+  [ ]  Дуже довгий рядок (10kB+) → unknown, без crash
+       ▸ AUTO: send("A" * 10_000)
+       ▸ MAN:  websocat -E - ws://... <<< "$(python -c 'print("A"*10000)')"
+
+  [ ]  Unicode / emoji ("🚀") → unknown
+       ▸ AUTO: send("🚀")
+       ▸ MAN:  wscat → ввести 🚀
+
+  [ ]  Newline всередині ("EX\nIT") → unknown (НЕ EXIT)
+       ▸ AUTO: send("EX\nIT") + перевірити що з'єднання НЕ закрилось
+
+  [ ]  JSON-payload ({"cmd":"EXIT"}) → unknown
+       ▸ AUTO: send('{"cmd":"EXIT"}')
+       ▸ MAN:  Postman → ввести JSON у WS-tab
+
+  [ ]  SQL-injection-payload → unknown, безпечно
+       ▸ AUTO: send("'; DROP TABLE flights; --")
+       ▸ MAN:  після — psql і впевнитись що flights жива
+
+  [M]  Binary WS-frame замість text
+       ▸ MAN:  websocat --binary ws://... <<< "binary data"
+       ▸ AUTO: await ws.send(b"\x01\x02\x03") → дивитись поведінку (зараз сервер ймовірно прийме як bytes у receive_text → error)
+
+  [ ]  Спам 50 поганих команд поспіль → сервер живий
+       ▸ AUTO: for _ in 50: send garbage → потім recv нормальну подію
+
+
+───────────────────────────────────────────────────────────────────────
+  5. SHARED BROADCAST (multi-client)
+───────────────────────────────────────────────────────────────────────
+
+  [ ]  2 клієнти → одна подія з однаковим timestamp
+       ▸ AUTO: 2× connect → asyncio.gather(recv, recv) → assert ts_a == ts_b
+       ▸ MAN:  2 вкладки wscat / websocketking → дивитись одночасні timestamps
+
+  [ ]  3 клієнти → той самий event-stream
+       ▸ AUTO: gather 5 подій × 3 клієнти → set timestamps на кожній позиції size==1
+
+  [ ]  A=ALL, B=LANDING — B бачить тільки landing, A — все
+       ▸ AUTO: підключити 2, фільтр для B → паралельно збирати
+       ▸ MAN:  2 вкладки wscat — у одній ALL, в іншій LANDING
+
+  [ ]  Filter одного клієнта не впливає на інших
+       ▸ AUTO: A continues to see all 4 types після того як B = LANDING
+
+  [P]  100 клієнтів одночасно — усі отримують без drop-у
+       ▸ k6: import { ws } from 'k6/ws'; 100 VU
+       ▸ Locust + locust-plugins websocket
+
+  [P]  Latency broadcast → recv: median < 50ms, p95 < 200ms
+       ▸ k6 + custom metric: now - JSON.parse(msg).timestamp
+
+
+───────────────────────────────────────────────────────────────────────
+  6. DISCONNECT RESILIENCE
+───────────────────────────────────────────────────────────────────────
+
+  [ ]  Після EXIT клієнт більше не отримує подій
+       ▸ AUTO: send("EXIT") + pytest.raises(ConnectionClosed) на recv
+
+  [ ]  Після abrupt close (ws.close() без EXIT) — клієнт мертвий
+       ▸ AUTO: await ws.close() → recv raises
+       ▸ MAN:  wscat → Ctrl+C → docker-compose logs backend — без traceback
+
+  [ ]  Інші клієнти продовжують отримувати події (1 рве — інші ок)
+       ▸ AUTO: 2× connect, close one, інший далі recv-ить 5 подій
+       ▸ MAN:  2 wscat → закрити одну вкладку → інша працює
+
+  [ ]  Server не падає на send у мертвий соккет
+       ▸ AUTO: масовий disconnect → новий клієнт ще працює
+       ▸ MAN:  10 wscat → Ctrl+C усі → docker logs backend — без crash
+
+  [ ]  manager.subscribers порожній після cleanup
+       ▸ AUTO/MAN: додати debug-endpoint GET /ws/_debug/subscribers → assert == 0 after disconnects
+       ▸ MAN:  docker-compose exec backend python -c "from app.websocket.ws_manager import manager; print(len(manager.subscribers))"
+
+  [M]  Логи backend — немає stack-trace після disconnect
+       ▸ MAN:  docker-compose logs -f backend | grep -i traceback
+
+  [P]  100 connect → disconnect — memory не росте
+       ▸ k6/Locust + `docker stats backend` — RSS стабільна
+
+
+───────────────────────────────────────────────────────────────────────
+  7. EDGE CASES / ROBUSTNESS
+───────────────────────────────────────────────────────────────────────
+
+  [ ]  Connect → одразу EXIT (без waiting на події)
+       ▸ AUTO: connect → ws.send("EXIT") → assert ConnectionClosed
+       ▸ MAN:  wscat → EXIT за 1 сек
+
+  [ ]  Connect → відразу send команда (до welcome)
+       ▸ AUTO: connect → send("LANDING") BEFORE будь-якого recv
+                → потім recv → переконатись що welcome + ack дійшли
+
+  [ ]  Спам команд: 100 ALL за секунду → 100 ack, без падіння
+       ▸ AUTO: for _ in 100: send("ALL") → рахуємо 100 "Filter cleared"
+       ▸ MAN:  websocat -E - --no-close ws://... < 100_alls.txt
+
+  [M]  Idle 5 хвилин — соккет живий (ping/pong)
+       ▸ MAN:  wscat (має built-in ping) — лишити вкладку відкритою на 5хв
+       ▸ AUTO: tests з ping_interval=10, ping_timeout=5 на 60 сек
+
+  [M]  Backend restart — клієнт отримує close, може reconnect
+       ▸ MAN:  wscat → docker-compose restart backend → wscat закривається з code 1012/1001
+
+  [M]  Network blip — recv() поведінка
+       ▸ MAN:  sudo pfctl -e + блок-rule на 8000 на 5 сек
+       ▸ AUTO: Toxiproxy (хороший інструмент для chaos network tests)
+
+
+───────────────────────────────────────────────────────────────────────
+  8. SCHEMA / CONTRACT
+───────────────────────────────────────────────────────────────────────
+
+  [ ]  Pydantic-схема WelcomeMessage (event=system, message, timestamp)
+       ▸ AUTO: WelcomeMessage.model_validate_json(raw)
+
+  [ ]  Pydantic discriminated-union FlightEvent (4 типи)
+       ▸ AUTO: TypeAdapter(FlightEvent).validate_python(event)
+
+  [ ]  Кожна подія з потоку валідна схемою (10+ подій)
+       ▸ AUTO: тест збирає N → валідує кожну
+
+  [ ]  Невалідна (corrupted) подія → ValidationError
+       ▸ AUTO: pytest.raises(ValidationError) на ручному dict-у
+
+  [M]  Backward-compat: бекенд додає НОВЕ поле → старі схеми не падають
+       ▸ MAN:  тимчасово додати поле у dashboard.py → перевірити що тести проходять
+                (рішення: model_config = {"extra": "allow"})
+
+
+───────────────────────────────────────────────────────────────────────
+  9. PROTOCOL COMPLIANCE (RFC 6455) — NEW
+───────────────────────────────────────────────────────────────────────
+
+  [ ]  Close code 1000 (normal) на EXIT
+       ▸ AUTO: except ConnectionClosedOK as e: assert e.rcvd.code == 1000
+       ▸ MAN:  wscat — друкує код у Disconnected-повідомленні
+
+  [ ]  Close code 1001 (going away) при server shutdown
+       ▸ MAN:  wscat → docker-compose stop backend → дивитись код
+       ▸ AUTO: запустити окремий compose у тесті, потім stop
+
+  [ ]  Ping/pong heartbeat працює
+       ▸ AUTO: websockets.connect(URL, ping_interval=10, ping_timeout=5) → 30s recv без розриву
+       ▸ MAN:  WireShark → filter websocket → Opcode 0x9 (ping), 0xA (pong)
+
+  [ ]  Max message size — sending 2MB frame
+       ▸ AUTO: send("A" * 2_000_000) — або обмежує сервер, або проходить (документуй limit)
+       ▸ MAN:  websocat --max-message-size 2000000
+
+  [M]  Text vs binary opcode (0x1 vs 0x2)
+       ▸ MAN:  websocat --binary
+       ▸ WireShark → перевірити opcode у frame
+
+  [M]  Fragmentation: великий msg розбитий на FIN=0 + FIN=1 кадри
+       ▸ MAN:  websocat --fragment-size 100 → передати довге → бекенд має зібрати
+
+
+───────────────────────────────────────────────────────────────────────
+  10. BACKPRESSURE & SLOW CONSUMER — NEW (HIGH priority for prod)
+───────────────────────────────────────────────────────────────────────
+
+  [ ]  Slow consumer не блокує broadcast іншим
+       ▸ AUTO: connect 2; client A читає швидко, client B спить → A продовжує recv
+                ws_b = await connect(); НЕ recv-ити; client A збирає 30 подій ОК
+       ▸ MAN:  websocat --no-line-mode --buffer-size=1 (повільне читання)
+
+  [ ]  Сервер не OOM-иться під slow consumer
+       ▸ MAN:  open wscat → нічого не читати → `docker stats backend` стабільна RSS
+       ▸ P:    Toxiproxy slow downstream toxic
+
+  [P]  Burst: 1000 подій за 100ms — TCP buffer behavior
+       ▸ k6: ratchet up event rate (треба тимчасово прискорити server ticker до 0.001s)
+
+  [ ]  При повільному клієнті — або drop, або disconnect, але не блок
+       ▸ AUTO: задокументувати + assert поточну поведінку (зараз: print Exception + cleanup у manager)
+
+
+───────────────────────────────────────────────────────────────────────
+  11. CONCURRENCY EDGE CASES — NEW
+───────────────────────────────────────────────────────────────────────
+
+  [ ]  Filter race: LANDING → одразу DEPARTING — фінал = DEPARTING
+       ▸ AUTO: ws.send("LANDING"); ws.send("DEPARTING") без await між ними
+                → наступні події == departing
+
+  [ ]  Send команди в момент coming-in події
+       ▸ AUTO: asyncio.gather(ws.send("ALL"), ws.recv()) — без race-bug
+
+  [ ]  Connect 50 клієнтів одночасно
+       ▸ AUTO: asyncio.gather(*[connect_clean() for _ in range(50)])
+                — усі отримують welcome за <2s
+
+
+───────────────────────────────────────────────────────────────────────
+  12. SECURITY / AUTH (наразі endpoint відкритий)
+───────────────────────────────────────────────────────────────────────
+
+  [S]  /ws/dashboard без авторизації — приймає всіх (acceptable for now)
+       ▸ documented gap
+
+  [S]  Origin header validation — наразі немає
+       ▸ MAN:  curl з Origin: http://evil.com — підключення проходить (це bad для prod)
+       ▸ AUTO (future): connect with extra_headers={"Origin": "..."} + assert reject
+
+  [S]  Rate-limit per IP — немає (DoS-вектор)
+       ▸ MAN:  for i in $(seq 1 1000); do wscat ... & done — backend має витримати
+
+  [S]  Message size limit — у websockets бібліотеці дефолт 1MB
+       ▸ AUTO: send("A"*2_000_000) → перевірити що сервер не OOM
+
+  [S]  Майбутнє: JWT у першому message frame
+  [S]  Майбутнє: різні permissions для admin/user
+  [S]  Майбутнє: TLS-only (wss://) в prod
+
+
+───────────────────────────────────────────────────────────────────────
+  13. PERFORMANCE & SCALABILITY
+───────────────────────────────────────────────────────────────────────
+
+  [P]  Throughput: 100 ev/sec × 100 clients
+       ▸ k6 + websocket extension
+  [P]  CPU/memory backend під 500 одночасних клієнтів
+       ▸ docker stats + k6
+  [P]  Handshake timing під load
+       ▸ k6 → ws_connecting metric
+  [P]  Network bandwidth per client
+       ▸ tcpdump + Wireshark IO graph
+  [P]  SQLAlchemy pool exhaustion (паралельні DB-калли + ticker)
+       ▸ виставити pool_size=2, конектити 50 клієнтів, дивитись queueing
+  [P]  Soak: 1 клієнт підключений 1 годину — без leak
+       ▸ docker stats backend → memory flat
+
+
+═══════════════════════════════════════════════════════════════════════
+  ПРІОРИТЕЗАЦІЯ ДЛЯ ПЕРШОЇ ХВИЛІ АВТОТЕСТІВ
+═══════════════════════════════════════════════════════════════════════
+
+P0 — обов'язково в першому PR (це те, що ми вже зробили):
+  - Section 1: connect + welcome + negative paths
+  - Section 2: event delivery + 4 типи + schema-поля
+  - Section 3: усі 6 команд (positive)
+  - Section 4: unknown / empty / unicode / huge / SQL-payload (negative)
+  - Section 5: 2-3 клієнти однаковий timestamp + filter isolation
+  - Section 6: EXIT / abrupt close / mass disconnect
+  - Section 7: connect+immediate EXIT, early send, command spam
+  - Section 8: Pydantic contract validation
+
+P1 — наступний PR:
+  - Section 9: close codes (1000, 1001), ping/pong
+  - Section 10: slow consumer не блокує інших
+  - Section 11: filter race, mass concurrent connect
+  - Section 4 [M]: binary frame behavior
+
+P2 — окремий ticket / після load-уроку (Locust):
+  - Усе з міткою [P]
+  - Section 12: коли додамо auth/Origin/rate-limit
+  - Toxiproxy chaos tests
+  - Soak / memory leak / handshake-under-load
+
+
+═══════════════════════════════════════════════════════════════════════
+  ЯК ВЗАГАЛІ ПРАВИЛЬНО ТЕСТУВАТИ WEBSOCKET — універсальний фреймворк
+═══════════════════════════════════════════════════════════════════════
+
+Рівень зрілості WS-тестів (по наростанню):
+
+L1  SMOKE        : connect / disconnect handshake — Section 1
+L2  FUNCTIONAL   : usus-cases (commands, broadcast, filtering) — Sections 2-5
+L3  PROTOCOL     : RFC 6455 compliance (close codes, ping/pong, binary) — Section 9
+L4  CONCURRENCY  : multi-client, race conditions, slow consumer — Sections 10-11
+L5  RESILIENCE   : disconnect, restart, network blip, reconnect — Sections 6-7
+L6  NON-FUNC     : load (k6), security (ZAP), soak — Sections 12-13
+
+Toolbox QA-інженера для WS:
+  - wscat            (швидкі мануальні сесії)
+  - websocat         (потужніший CLI: binary, fragmentation, scripted)
+  - websocketking.com / Postman / Insomnia (GUI exploratory)
+  - pytest + websockets + pytest-asyncio (наш стек автотестів)
+  - Pydantic / JSON-schema (contract validation)
+  - k6 з ws-extension (load + latency)
+  - Toxiproxy (chaos: повільна мережа, drop, jitter)
+  - WireShark / tcpdump (raw frames, close codes)
+  - docker stats / lsof (memory / FD leaks)
+  - OWASP ZAP (security scan коли є auth)
+
+═══════════════════════════════════════════════════════════════════════
